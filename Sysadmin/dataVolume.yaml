@@ -1,0 +1,15 @@
+# This example assumes you are using a default storage class
+apiVersion: cdi.kubevirt.io/v1alpha1
+kind: DataVolume
+metadata:
+  name: debian-9-openstack-amd64
+spec:
+  source:
+      http:
+         url: "https://cdimage.debian.org/cdimage/openstack/current-9/debian-9-openstack-amd64.qcow2"
+  pvc:
+    accessModes:
+      - ReadWriteOnce
+    resources:
+      requests:
+        storage: 3Gi

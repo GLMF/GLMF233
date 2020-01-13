@@ -1,0 +1,94 @@
+apiVersion: kubevirt.io/v1alpha3
+kind: VirtualMachine
+metadata:
+  generation: 1
+  labels:
+    kubevirt.io/os: linux
+  name: debian9
+spec:
+  running: true
+  template:
+    metadata:
+      labels:
+        image: debian9
+    spec:
+      domain:
+        cpu:
+          cores: 2
+        devices:
+          disks:
+          - disk:
+              bus: virtio
+            name: disk0
+          - cdrom:
+              bus: sata
+              readonly: true
+            name: cloudinitdisk
+        machine:
+          type: q35
+        resources:
+          requests:
+            memory: 2048M
+      volumes:
+      - name: disk0
+        persistentVolumeClaim:
+          claimName: debian-9-openstack-amd64
+      - cloudInitNoCloud:
+          userData: |
+            #cloud-config
+            hostname: debian9
+            ssh_pwauth: True
+            disable_root: false
+            ssh_authorized_keys:
+            - your_ssh_key_pub
+            package_update: true
+            packages:
+            - nginx
+            write_files:
+            - content: |
+                "hello from cloud-init"
+              path: /usr/share/nginx/html/index.html
+        name: cloudinitdisk
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: debian9-ssh
+spec:
+  externalTrafficPolicy: Cluster
+  ports:
+  - name: ssh
+    port: 22
+    protocol: TCP
+    targetPort: 22
+  selector:
+    image: debian9
+  type: NodePort
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: debian9-http
+spec:
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: 80
+  selector:
+    image: debian9
+  type: ClusterIP
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: debian9-front
+spec:
+  rules:
+    - host: nginx.xxx.xxx.xxx.xxx.xip.io # your ip address here
+      http:
+        paths:
+        - path: /
+          backend:
+            serviceName: debian9-http
+            servicePort: 80

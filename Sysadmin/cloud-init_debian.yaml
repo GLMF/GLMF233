@@ -1,0 +1,81 @@
+apiVersion: kubevirt.io/v1alpha3
+kind: VirtualMachine
+metadata:
+  generation: 1
+  labels:
+    kubevirt.io/os: linux
+  name: debian9
+spec:
+  running: true
+  template:
+    metadata:
+      labels:
+        image: debian9
+    spec:
+      domain:
+        cpu:
+          cores: 2
+        devices:
+          disks:
+          - disk:
+              bus: virtio
+            name: disk0
+          - cdrom:
+              bus: sata
+              readonly: true
+            name: cloudinitdisk
+        machine:
+          type: q35
+        resources:
+          requests:
+            memory: 2048M
+      volumes:
+      - name: disk0
+        persistentVolumeClaim:
+          claimName: debian-9-openstack-amd64
+      - cloudInitNoCloud:
+          userDataBase64: I2Nsb3VkLWNvbmZpZwpob3N0bmFtZTogZGViaWFuOQpzc2hfcHdhdXRoOiBUcnVlCmRpc2FibGVfcm9vdDogZmFsc2UKc3NoX2F1dGhvcml6ZWRfa2V5czoKLSBzc2gtcnNhIEFBQUFCM056YUMxeWMyRUFBQUFEQVFBQkFBQUJBUUM1cnJMRlB3TXNqMmdDd1J4YVdocDNicU1haWlldWxFdTlSdXZVZHIzRXFjcTE0cHk4cndkaEIwTDRoVTdqTTNJNC9kTUZiMS9yT2Jrbmk4ZUc1TDhDTWVrUm80emV0NlQ0RW5Lb1cyZUlEL3FRMTh4YTUvZXNjRHVSbjBERnZ6OXZ2WG1KeWM4SU0yYmVBbjRSQ2pMS1ZiNGlLZWg4Rm1xN250VysybG9YVkxGZWNOSlFuMTBrQm1JaGdvNGZMT1pSbW5MYkFCUW9OQ3dQVzJXbVhqcGtZa05aUFc3K3dPVEtOQ0VMeVdPYUJ3bFRqekx1M2hkV1ZaZ1pIRXpNTHNrRUxsOTZ5Ly9RVkRLSjRXaWY4S09xdTV2S2VQMmxic0oyTmlxOC92V0g5NEZxSGV1bkUzTHNFdXpWSFdFVnRuVERNb1VYejNQbFZYaXhFRUF2NHo0WApydW5jbWQ6CiAgLSBzdWRvIGFwdCB1cGRhdGUKICAtIHN1ZG8gYXB0IGluc3RhbGwgLXkgbmdpbngKICAtIHN1ZG8gc2ggLWMgImVjaG8gJ2hlbGxvIGZyb20gY2xvdWQtaW5pdCcgPiAvdXNyL3NoYXJlL25naW54L2h0bWwvaW5kZXguaHRtbCIKICAtIHN1ZG8gc3lzdGVtY3RsIHJlc3RhcnQgbmdpbngK
+        name: cloudinitdisk
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: debian9-ssh
+spec:
+  externalTrafficPolicy: Cluster
+  ports:
+  - name: ssh
+    port: 22
+    protocol: TCP
+    targetPort: 22
+  selector:
+    image: debian9
+  type: NodePort
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: debian9-http
+spec:
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: 80
+  selector:
+    image: debian9
+  type: ClusterIP
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: debian9-front
+spec:
+  rules:
+    - host: nginx.192.168.99.91.xip.io
+      http:
+        paths:
+        - path: /
+          backend:
+            serviceName: debian9-http
+            servicePort: 80
